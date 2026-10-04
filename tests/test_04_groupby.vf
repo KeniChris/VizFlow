@@ -1,0 +1,6 @@
+// Casos de prueba para sentencia GROUP_BY y funciones de agregación (Sección 2.4 de VizFlow)
+ventas |> GROUP_BY(categoria, SUM(monto));
+ventas |> GROUP_BY(region, AVG(monto));
+productos |> GROUP_BY(categoria, MIN(precio));
+productos |> GROUP_BY(categoria, MAX(precio));
+clientes |> GROUP_BY(region, COUNT());

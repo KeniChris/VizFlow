@@ -1,0 +1,6 @@
+// Casos de prueba para sentencia TRANSFORM (Sección 2.3 del Informe VizFlow)
+ventas |> TRANSFORM(monto_igv = monto * 1.18);
+clientes |> TRANSFORM(edad_meses = edad * 12);
+notas |> TRANSFORM(nota_final = examen1 + examen2);
+inventario |> TRANSFORM(valor_total = precio * cantidad);
+ventas |> TRANSFORM(ganancia = precio_venta - costo_base);
