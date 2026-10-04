@@ -1,0 +1,26 @@
+# Archivos de material del curso y comprimidos
+Teoria de Compiladores.zip
+*.zip
+*.tar.gz
+*.deb
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+.venv/
+ENV/
+
+# Archivos temporales de editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs y temporales
+*.log
+/tmp/
