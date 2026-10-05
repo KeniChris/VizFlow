@@ -7,7 +7,7 @@ Teoría de Compiladores (UPC).
 
 import sys
 from antlr4 import CommonTokenStream, FileStream, InputStream, Token
-from VizFlowLexer import VizFlowLexer
+from gen.VizFlowLexer import VizFlowLexer
 
 
 # Clasificación de tokens para resumen estadístico
