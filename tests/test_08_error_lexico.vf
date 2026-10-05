@@ -1,8 +1,11 @@
-// Archivo con caracteres no permitidos en el léxico de VizFlow
+// Casos de prueba con operadores no permitidos en el léxico de VizFlow
 DATASET ventas = LOAD "ventas.csv";
 
-// El símbolo arroba (@) y numeral (#) no están definidos
-ventas |> FILTER(monto @ 500 # error);
+// VizFlow utiliza AND en lugar de &&
+ventas |> FILTER(monto > 500 && activo == TRUE);
 
-// El carácter tilde (~) y dólar ($) tampoco son válidos
-ventas |> TRANSFORM(total = ~precio $ cantidad);
+// VizFlow utiliza OR en lugar de ||
+ventas |> FILTER(monto > 500 || destacado == TRUE);
+
+// VizFlow utiliza NOT en lugar de !
+ventas |> FILTER(!disponible == TRUE);

@@ -19,7 +19,7 @@ KEYWORDS = {
 
 OPERATORS = {
     'PIPE', 'EQ', 'NEQ', 'LTE', 'GTE', 'LT', 'GT', 'ASSIGN',
-    'PLUS', 'MINUS', 'STAR', 'SLASH', 'MOD', 'AND_OP', 'OR_OP', 'NOT_OP'
+    'PLUS', 'MINUS', 'STAR', 'SLASH'
 }
 
 DELIMITERS = {'LPAREN', 'RPAREN', 'COMMA', 'SEMI'}
@@ -131,7 +131,7 @@ def main():
         demo_code = (
             'DATASET ventas = LOAD "ventas.csv";\n'
             'ventas\n'
-            '  |> FILTER(monto > 500 && categoria != "descontinuado")\n'
+            '  |> FILTER(monto > 500 AND categoria != "descontinuado")\n'
             '  |> TRANSFORM(monto_igv = monto * 1.18)\n'
             '  |> GROUP_BY(categoria, SUM(monto))\n'
             '  |> PLOT BAR(x=categoria, y=monto)\n'

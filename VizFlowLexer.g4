@@ -7,12 +7,14 @@ lexer grammar VizFlowLexer;
  * ============================================================================
  */
 
+
 // ----------------------------------------------------------------------------
 // 1. PALABRAS RESERVADAS (Keywords)
-// NOTA IMPORTANTE: Deben definirse ANTES de la regla ID para tener prioridad.
+// Se definen antes de la regla ID para que ANTLR las reconozca como palabras
+// reservadas y no como identificadores.
 // ----------------------------------------------------------------------------
 
-// Comandos y estructuras principales
+// Comandos y construcciones principales del lenguaje
 DATASET     : 'DATASET' ;
 LOAD        : 'LOAD' ;
 FILTER      : 'FILTER' ;
@@ -21,24 +23,24 @@ GROUP_BY    : 'GROUP_BY' ;
 PLOT        : 'PLOT' ;
 DASHBOARD   : 'DASHBOARD' ;
 
-// Funciones estadísticas de agregación
+// Funciones estadísticas utilizadas en operaciones de agrupamiento
 SUM         : 'SUM' ;
 AVG         : 'AVG' ;
 MIN         : 'MIN' ;
 MAX         : 'MAX' ;
 COUNT       : 'COUNT' ;
 
-// Tipos de visualización soportados en sentencias PLOT
+// Tipos de visualización soportados por PLOT
 BAR         : 'BAR' ;
 LINE        : 'LINE' ;
 SCATTER     : 'SCATTER' ;
 
-// Constantes y literales lógicos
+// Valores booleanos y valor nulo
 TRUE        : 'true' | 'TRUE' ;
 FALSE       : 'false' | 'FALSE' ;
 NULL        : 'null' | 'NULL' ;
 
-// Operadores lógicos textuales
+// Operadores lógicos textuales utilizados en condiciones de FILTER
 AND         : 'and' | 'AND' ;
 OR          : 'or' | 'OR' ;
 NOT         : 'not' | 'NOT' ;
@@ -46,14 +48,18 @@ NOT         : 'not' | 'NOT' ;
 
 // ----------------------------------------------------------------------------
 // 2. OPERADOR DE TUBERÍA (Pipeline Operator)
+// Permite encadenar operaciones de forma secuencial sobre un mismo dataset.
 // ----------------------------------------------------------------------------
+
 PIPE        : '|>' ;
 
 
 // ----------------------------------------------------------------------------
 // 3. OPERADORES RELACIONALES / DE COMPARACIÓN
-// NOTA: Los operadores de dos caracteres deben ir antes de los de un carácter.
+// Los operadores de dos caracteres se definen antes que los de un carácter.
+// Se utilizan principalmente en las condiciones de FILTER.
 // ----------------------------------------------------------------------------
+
 EQ          : '==' ;
 NEQ         : '!=' ;
 LTE         : '<=' ;
@@ -63,32 +69,30 @@ GT          : '>' ;
 
 
 // ----------------------------------------------------------------------------
-// 4. OPERADORES DE ASIGNACIÓN
+// 4. OPERADOR DE ASIGNACIÓN
+// Se utiliza en la declaración de datasets y en las transformaciones.
 // ----------------------------------------------------------------------------
+
 ASSIGN      : '=' ;
 
 
 // ----------------------------------------------------------------------------
 // 5. OPERADORES ARITMÉTICOS
+// Permiten construir expresiones aritméticas dentro de TRANSFORM.
+// La precedencia de estos operadores será definida por la gramática sintáctica.
 // ----------------------------------------------------------------------------
+
 PLUS        : '+' ;
 MINUS       : '-' ;
 STAR        : '*' ;
 SLASH       : '/' ;
-MOD         : '%' ;
 
 
 // ----------------------------------------------------------------------------
-// 6. OPERADORES LÓGICOS SIMBÓLICOS
+// 6. SIGNOS DE PUNTUACIÓN Y DELIMITADORES
+// Los paréntesis también permiten agrupar expresiones y condiciones.
 // ----------------------------------------------------------------------------
-AND_OP      : '&&' ;
-OR_OP       : '||' ;
-NOT_OP      : '!' ;
 
-
-// ----------------------------------------------------------------------------
-// 7. SIGNOS DE PUNTUACIÓN Y DELIMITADORES
-// ----------------------------------------------------------------------------
 LPAREN      : '(' ;
 RPAREN      : ')' ;
 COMMA       : ',' ;
@@ -96,14 +100,16 @@ SEMI        : ';' ;
 
 
 // ----------------------------------------------------------------------------
-// 8. LITERALES (Literals)
-// Reglas más específicas primero (FLOAT_LIT antes de INT_LIT).
+// 7. LITERALES (Literals)
+// FLOAT_LIT se define antes de INT_LIT por ser una regla más específica.
 // ----------------------------------------------------------------------------
 
-// Literales de cadena entre comillas dobles (soporta secuencias de escape)
+// Literales de cadena entre comillas dobles.
+// Permite caracteres escapados dentro de la cadena.
 STRING_LIT  : '"' (~["\r\n\\] | '\\' .)* '"' ;
 
-// Literales numéricos en punto flotante (con o sin notación científica)
+// Literales numéricos de punto flotante.
+// Se permiten valores decimales y notación científica.
 FLOAT_LIT   : DIGITOS '.' DIGITOS? EXPONENTE?
             | '.' DIGITOS EXPONENTE?
             | DIGITOS EXPONENTE
@@ -114,22 +120,25 @@ INT_LIT     : DIGITOS ;
 
 
 // ----------------------------------------------------------------------------
-// 9. IDENTIFICADORES (Identifiers)
-// Nombres de datasets, variables y columnas (ej. ventas, monto, categoria).
+// 8. IDENTIFICADORES (Identifiers)
+// Representan nombres de datasets, columnas y nuevos valores generados
+// mediante transformaciones.
 // ----------------------------------------------------------------------------
+
 ID          : [a-zA-Z_] [a-zA-Z0-9_]* ;
 
 
 // ----------------------------------------------------------------------------
-// 10. ELEMENTOS A IGNORAR (Espacios en blanco y comentarios)
-// Se procesan con directiva '-> skip' según el estilo de ANTLR4.
+// 9. ELEMENTOS A IGNORAR (Espacios en blanco y comentarios)
+// Estos elementos no intervienen en la estructura sintáctica del programa,
+// por lo que se procesan mediante la directiva -> skip.
 // ----------------------------------------------------------------------------
 
-// Comentario de una sola línea (inicia con // hasta fin de línea)
+// Comentario de una sola línea: // comentario
 LINE_COMMENT  : '//' ~[\r\n]* -> skip ;
 
-// Comentario de bloque multilínea (/* ... */)
-// El cuantificador '.*?' no codicioso detiene la captura en el primer '*/'
+// Comentario multilínea: /* comentario */
+// El cuantificador no codicioso .*? finaliza en la primera aparición de */
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 
 // Espacios en blanco, tabulaciones y saltos de línea
@@ -137,16 +146,19 @@ WS            : [ \t\r\n]+ -> skip ;
 
 
 // ----------------------------------------------------------------------------
-// 11. MANEJO DE ERRORES LÉXICOS / CARACTERES DESCONOCIDOS
-// Al colocar '.' al final, cualquier carácter no válido es capturado como
-// token ERROR_CHAR para ser reportado por el analizador sin interrumpir el flujo.
+// 10. MANEJO DE ERRORES LÉXICOS / CARACTERES DESCONOCIDOS
+// Al ubicarse al final, captura cualquier carácter que no corresponda con
+// alguno de los tokens definidos anteriormente.
 // ----------------------------------------------------------------------------
-ERROR_CHAR  : . ;
+
+ERROR_CHAR    : . ;
 
 
 // ----------------------------------------------------------------------------
-// FRAGMENTOS AUXILIARES (Reutilizables, no producen tokens individuales)
+// FRAGMENTOS AUXILIARES
+// Se utilizan para construir otros tokens y no generan tokens por sí mismos.
 // ----------------------------------------------------------------------------
+
 fragment DIGITO    : [0-9] ;
 fragment DIGITOS   : DIGITO+ ;
 fragment SIGNO     : [+\-] ;
