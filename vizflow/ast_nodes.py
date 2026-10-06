@@ -13,7 +13,7 @@ class Location:
 @dataclass
 class Node:
     location: Location
-    # Atributo sintetizado: lo completa el analizador en las expresiones.
+
     inferred_type: str | None = field(default=None, init=False, repr=False)
 
 

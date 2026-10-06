@@ -1,2 +1,0 @@
-examples/errores/sem007_sum_texto.vf:3:28: ERROR SEM007 (semántico): SUM necesita una columna NUMBER; 'categoria' es STRING.
-Análisis rechazado: 1 error(es).

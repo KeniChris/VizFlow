@@ -6,10 +6,10 @@ from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 from gen.VizFlowLexer import VizFlowLexer
 from gen.VizFlowParser import VizFlowParser
-from .ast_builder import ASTBuilder
 from .ast_nodes import Location, Program
 from .diagnostics import Diagnostic
-from .semantic import AnalysisResult, SemanticAnalyzer
+from .semantic import AnalysisResult
+from .semantic_visitor import SemanticVisitor
 
 
 class CollectErrors(ErrorListener):
@@ -41,8 +41,7 @@ def analyze_source(source: str, base_dir: Path) -> FrontendResult:
     lexer.addErrorListener(lexical_errors)
     tokens = CommonTokenStream(lexer)
     tokens.fill()
-    # ERROR_CHAR es un token válido para ANTLR, pero un error para VizFlow.
-    # No dispara syntaxError del lexer: hay que reconocerlo explícitamente.
+
     for token in tokens.tokens:
         if token.type == VizFlowLexer.ERROR_CHAR:
             lexical_errors.diagnostics.append(Diagnostic(
@@ -57,6 +56,6 @@ def analyze_source(source: str, base_dir: Path) -> FrontendResult:
     tree = parser.programa()
     if syntax_errors.diagnostics:
         return FrontendResult(None, None, syntax_errors.diagnostics)
-    program = ASTBuilder().visit(tree)
-    analysis = SemanticAnalyzer(base_dir).analyze(program)
-    return FrontendResult(program, analysis, analysis.diagnostics)
+    visitor = SemanticVisitor(base_dir)
+    analysis = visitor.visit(tree)
+    return FrontendResult(visitor.program, analysis, analysis.diagnostics)

@@ -1,6 +1,7 @@
 """Integración desde texto fuente con las gramáticas reales del equipo."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -8,11 +9,14 @@ import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
+from typing import TypeVar, cast
 
 from vizflow import ast_nodes as ast
 from vizflow.frontend import analyze_source
+from vizflow.semantic import AnalysisResult
 
 PROJECT = Path(__file__).resolve().parents[2]
+NodeT = TypeVar("NodeT", bound=ast.Node)
 
 
 class SemanticTests(unittest.TestCase):
@@ -29,18 +33,34 @@ class SemanticTests(unittest.TestCase):
     def analyze(self, body, prefix=True):
         return analyze_source((self.prefix if prefix else "") + body, self.root)
 
-    def valid(self, body, prefix=True):
+    def valid(self, body, prefix=True) -> AnalysisResult:
         result = self.analyze(body, prefix)
         self.assertTrue(result.ok, [d.message for d in result.diagnostics])
         self.assertIsNotNone(result.analysis)
-        return result
+        assert result.analysis is not None
+        return result.analysis
 
-    def semantic_error(self, body, code, prefix=True):
+    def semantic_error(self, body, code, prefix=True) -> AnalysisResult:
         result = self.analyze(body, prefix)
         self.assertIsNotNone(result.analysis, "Debe superar léxico y sintaxis.")
         self.assertIn(code, [d.code for d in result.diagnostics])
         self.assertTrue(all(d.phase == "semántico" for d in result.diagnostics))
-        return result
+        assert result.analysis is not None
+        return result.analysis
+
+    def node(self, value: ast.Node, expected: type[NodeT]) -> NodeT:
+        # assertIsInstance valida en ejecución; cast comunica ese tipo al editor.
+        self.assertIsInstance(value, expected)
+        return cast(NodeT, value)
+
+    def pipeline(self, result: AnalysisResult) -> ast.Pipeline:
+        return self.node(result.program.statements[1], ast.Pipeline)
+
+    def condition(self, result: AnalysisResult) -> ast.Node:
+        return self.node(self.pipeline(result).operations[0], ast.Filter).condition
+
+    def expression(self, result: AnalysisResult) -> ast.Node:
+        return self.node(self.pipeline(result).operations[0], ast.Transform).expression
 
     def syntax_error(self, body, prefix=True):
         result = self.analyze(body, prefix)
@@ -53,8 +73,8 @@ class SemanticTests(unittest.TestCase):
         result = self.valid("ventas |> FILTER(monto > 500) "
                             "|> GROUP_BY(categoria, SUM(monto)) "
                             "|> PLOT BAR(x=categoria, y=monto) |> DASHBOARD;")
-        self.assertEqual(set(result.analysis.pipelines[0].columns), {"categoria", "monto"})
-        self.assertIsInstance(result.program.statements[1].operations[-1], ast.Dashboard)
+        self.assertEqual(set(result.pipelines[0].columns), {"categoria", "monto"})
+        self.assertIsInstance(self.pipeline(result).operations[-1], ast.Dashboard)
 
     def test_ejemplos_de_construcciones_actualizadas(self):
         declarations = "\n".join([
@@ -100,18 +120,18 @@ class SemanticTests(unittest.TestCase):
 
     def test_not_se_aplica_a_comparacion_del_informe(self):
         result = self.valid("ventas |> FILTER(NOT activo == TRUE);")
-        condition = result.program.statements[1].operations[0].condition
-        self.assertIsInstance(condition, ast.Unary)
+        condition = self.node(self.condition(result), ast.Unary)
         self.assertIsInstance(condition.operand, ast.Binary)
         self.assertEqual(condition.inferred_type, "BOOLEAN")
 
     def test_precedencia_not_and_or_y_minusculas(self):
         result = self.valid('ventas |> FILTER(not activo == true and monto > 10 '
                             'or region == "Lima");')
-        condition = result.program.statements[1].operations[0].condition
+        condition = self.node(self.condition(result), ast.Binary)
         self.assertEqual(condition.operator, "OR")
-        self.assertEqual(condition.left.operator, "AND")
-        self.assertEqual(condition.left.left.operator, "NOT")
+        left = self.node(condition.left, ast.Binary)
+        self.assertEqual(left.operator, "AND")
+        self.assertEqual(self.node(left.left, ast.Unary).operator, "NOT")
         self.assertEqual(condition.inferred_type, "BOOLEAN")
 
     def test_parentesis_logicos(self):
@@ -119,16 +139,16 @@ class SemanticTests(unittest.TestCase):
 
     def test_precedencia_aritmetica_y_tipo_sintetizado(self):
         result = self.valid("ventas |> TRANSFORM(total = monto + precio * cantidad);")
-        expression = result.program.statements[1].operations[0].expression
+        expression = self.node(self.expression(result), ast.Binary)
         self.assertEqual(expression.operator, "+")
-        self.assertEqual(expression.right.operator, "*")
+        self.assertEqual(self.node(expression.right, ast.Binary).operator, "*")
         self.assertEqual(expression.inferred_type, "NUMBER")
 
     def test_asociatividad_aritmetica_izquierda(self):
         result = self.valid("ventas |> TRANSFORM(total = monto - precio - cantidad);")
-        expression = result.program.statements[1].operations[0].expression
-        self.assertEqual(expression.left.operator, "-")
-        self.assertEqual(expression.right.name, "cantidad")
+        expression = self.node(self.expression(result), ast.Binary)
+        self.assertEqual(self.node(expression.left, ast.Binary).operator, "-")
+        self.assertEqual(self.node(expression.right, ast.Column).name, "cantidad")
 
     def test_decimales_del_lexer_real(self):
         self.valid("ventas |> TRANSFORM(total = monto * .75 + 1. + 1e3);")
@@ -140,8 +160,10 @@ class SemanticTests(unittest.TestCase):
     def test_transform_no_modifica_dataset_global(self):
         result = self.semantic_error("ventas |> TRANSFORM(total = precio * cantidad);\n"
                                      "ventas |> FILTER(total > 10);", "SEM003")
-        self.assertNotIn("total", result.analysis.symbols.lookup("ventas").columns)
-        self.assertIn("total", result.analysis.pipelines[0].columns)
+        dataset = result.symbols.datasets["ventas"]
+        assert dataset.columns is not None
+        self.assertNotIn("total", dataset.columns)
+        self.assertIn("total", result.pipelines[0].columns)
 
     def test_transform_reemplaza_columna_existente(self):
         self.valid("ventas |> TRANSFORM(monto = precio * cantidad) |> FILTER(monto > 10);")
@@ -151,14 +173,14 @@ class SemanticTests(unittest.TestCase):
                  'clientes |> GROUP_BY(region, COUNT()) ' \
                  '|> PLOT BAR(x=region, y=total_clientes);'
         result = self.valid(source, prefix=False)
-        schema = result.analysis.pipelines[0].columns
+        schema = result.pipelines[0].columns
         self.assertEqual(set(schema), {"region", "total_clientes"})
         self.assertEqual(schema["total_clientes"].datatype, "NUMBER")
 
     def test_count_nombre_para_otro_dataset(self):
         result = self.valid("ventas |> GROUP_BY(region, COUNT()) "
                             "|> PLOT BAR(x=region, y=total_ventas);")
-        self.assertIn("total_ventas", result.analysis.pipelines[0].columns)
+        self.assertIn("total_ventas", result.pipelines[0].columns)
 
     def test_pipelines_con_dashboard_opcional(self):
         self.valid("ventas |> FILTER(monto > 10);\n"
@@ -260,7 +282,7 @@ class SemanticTests(unittest.TestCase):
     def test_null_columna_sin_muestras_de_tipo(self):
         (self.root / "ventas.csv").write_text("monto,region\n,Lima\n", encoding="utf-8")
         result = self.valid("ventas |> FILTER(monto == NULL);")
-        condition = result.program.statements[1].operations[0].condition
+        condition = self.node(self.condition(result), ast.Binary)
         self.assertEqual(condition.left.inferred_type, "UNKNOWN")
         self.assertEqual(condition.right.inferred_type, "NULL")
         self.assertEqual(condition.inferred_type, "BOOLEAN")
@@ -275,7 +297,9 @@ class SemanticTests(unittest.TestCase):
     def test_csv_bom_vacios_y_decimales(self):
         (self.root / "ventas.csv").write_text("\ufeffmonto,activo\n1.5,true\n,false\n", encoding="utf-8")
         result = self.valid("ventas |> FILTER(monto >= 1.5 AND activo == TRUE);")
-        column = result.analysis.symbols.lookup("ventas").columns["monto"]
+        dataset = result.symbols.datasets["ventas"]
+        assert dataset.columns is not None
+        column = dataset.columns["monto"]
         self.assertTrue(column.nullable)
         self.assertEqual(column.datatype, "NUMBER")
 
@@ -285,8 +309,8 @@ class SemanticTests(unittest.TestCase):
 
     def test_cadenas_escapadas_del_lexer_real(self):
         result = self.valid(r'ventas |> FILTER(categoria == "A\"B\\C\q");')
-        condition = result.program.statements[1].operations[0].condition
-        self.assertEqual(condition.right.value, 'A"B\\C\\q')
+        condition = self.node(self.condition(result), ast.Binary)
+        self.assertEqual(self.node(condition.right, ast.Literal).value, 'A"B\\C\\q')
 
     def test_error_char_es_error_lexico(self):
         body = "ventas |> FILTER(monto @ 10);"
@@ -332,9 +356,11 @@ class SemanticTests(unittest.TestCase):
 
 
 class DriverTests(unittest.TestCase):
-    def execute(self, *arguments, cwd=PROJECT):
+    def execute(self, *arguments: str, cwd: str | Path = PROJECT):
         return subprocess.run([sys.executable, str(PROJECT / "main.py"), *arguments],
-                              cwd=cwd, capture_output=True, text=True)
+                              cwd=cwd, capture_output=True, text=True,
+                              encoding="utf-8",
+                              env=dict(os.environ, PYTHONIOENCODING="utf-8"))
 
     def test_driver_legacy_sigue_funcionando(self):
         result = self.execute("tests/test_sintactico/validos/test_06_pipeline_valido2.vf")

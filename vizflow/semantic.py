@@ -1,23 +1,31 @@
 """Comprobación estática sobre AST y tabla de símbolos; no depende de ANTLR."""
 
 import csv
-from dataclasses import dataclass, field
-from decimal import DecimalException, Inexact, localcontext
+from dataclasses import dataclass, field, replace
+from decimal import Decimal, DecimalException, Inexact, localcontext
 from pathlib import Path
 from . import ast_nodes as ast
 from .csv_schema import read_schema
 from .diagnostics import Diagnostic
+from .errors import SemanticError
 from .symbols import (
-    BOOLEAN, ERROR, NULL, NUMBER, STRING, UNKNOWN,
+    BOOLEAN, DATASET, ERROR, NULL, NUMBER, STRING, UNKNOWN,
     ColumnSymbol, DatasetSymbol, SymbolTable,
 )
+
+
+# VizFlow reúne int y float en NUMBER. La tabla cumple el papel de ARITH_COMPAT
+# en MiniLang sin añadir tipos ni construcciones que el parser no reconoce.
+ARITH_COMPAT = {(NUMBER, NUMBER): NUMBER}
+REL_COMPAT = {(NUMBER, NUMBER): BOOLEAN, (STRING, STRING): BOOLEAN,
+              (BOOLEAN, BOOLEAN): BOOLEAN}
 
 
 @dataclass
 class ExpressionInfo:
     datatype: str
     # Solo constantes del programa; no se evalúan las filas del CSV.
-    constant: object = None
+    constant: Decimal | str | bool | None = None
 
 
 @dataclass
@@ -43,14 +51,18 @@ class SemanticAnalyzer:
     def __init__(self, base_dir: Path):
         self.base_dir = Path(base_dir)
         self.symbols = SymbolTable()
+        self.errors: list[SemanticError] = []
         self.diagnostics: list[Diagnostic] = []
         self.pipelines: list[PipelineSummary] = []
 
-    def error(self, code: str, node: ast.Node, message: str):
-        self.diagnostics.append(Diagnostic(code, message, node.location))
+    def error(self, code: str, node: ast.Node, message: str) -> None:
+        error = SemanticError(code, message, node.location.line, node.location.column)
+        self.errors.append(error)
+        self.diagnostics.append(error.diagnostic())
 
     def analyze(self, program: ast.Program) -> AnalysisResult:
         self.symbols = SymbolTable()
+        self.errors = []
         self.diagnostics = []
         self.pipelines = []
         for statement in program.statements:
@@ -60,11 +72,11 @@ class SemanticAnalyzer:
                 self._pipeline(statement)
         return AnalysisResult(program, self.symbols, self.diagnostics, self.pipelines)
 
-    def _load(self, node: ast.LoadDataset):
+    def _load(self, node: ast.LoadDataset) -> None:
         original = self.symbols.lookup(node.name)
         if original is not None:
             self.error("SEM002", node, f"El dataset '{node.name}' ya fue declarado "
-                       f"en la línea {original.location.line}.")
+                       f"en la línea {original.line}.")
             return
         path = Path(node.path)
         if not path.is_absolute():
@@ -76,17 +88,30 @@ class SemanticAnalyzer:
             self.error("SEM011", node, f"No se pudo obtener el esquema de '{node.path}': {exc}")
             columns = None
         # Evita falsos "no declarado" si ya se notificó un fallo del LOAD.
-        self.symbols.declare(DatasetSymbol(node.name, path, node.location, columns))
+        symbol = DatasetSymbol(node.name, path, node.location, columns,
+                               initialized=columns is not None)
+        self.symbols.declare(node.name, DATASET, node.location.line, symbol=symbol)
 
-    def _pipeline(self, node: ast.Pipeline):
+    def _pipeline(self, node: ast.Pipeline) -> None:
         dataset = self.symbols.lookup(node.dataset)
-        if dataset is None:
+        if not isinstance(dataset, DatasetSymbol):
             self.error("SEM001", node, f"El dataset '{node.dataset}' no ha sido declarado.")
             return
+        dataset.used = True
         if dataset.columns is None:
             return
-        # Entorno local: no se modifica el esquema del dataset fuente.
-        schema = dict(dataset.columns)
+        scope = f"pipeline_{len(self.pipelines) + 1}_L{node.location.line}"
+        self.symbols.enter_scope(scope)
+        # Copiar cada símbolo conserva los flags de uso del dataset fuente.
+        schema = {name: replace(column, scope=scope, line=dataset.line, used=False)
+                  for name, column in dataset.columns.items()}
+        self.symbols.replace_columns(schema)
+        try:
+            self._operations(node, schema)
+        finally:
+            self.symbols.exit_scope()
+
+    def _operations(self, node: ast.Pipeline, schema: dict[str, ColumnSymbol]) -> None:
         dashboard = False
         for operation in node.operations:
             if dashboard:
@@ -103,20 +128,32 @@ class SemanticAnalyzer:
                     self.error("SEM004", operation.expression,
                                f"TRANSFORM es aritmético y necesita NUMBER; recibió {info.datatype}.")
                     info = ExpressionInfo(ERROR)
-                schema[operation.target] = ColumnSymbol(operation.target, info.datatype)
+                # Como visitAssignment: solo inicializar tras una operación válida.
+                # Una asignación fallida conserva el tipo anterior del destino.
+                if info.datatype == NUMBER:
+                    column = ColumnSymbol(
+                        operation.target, NUMBER, scope=self.symbols.current_scope,
+                        line=operation.location.line, initialized=True)
+                    schema[operation.target] = column
+                    self.symbols.current_symbols[operation.target] = column
             elif isinstance(operation, ast.GroupBy):
                 schema = self._group(operation, schema, node.dataset)
+                self.symbols.replace_columns(schema)
             elif isinstance(operation, ast.Plot):
                 self._plot(operation, schema)
             elif isinstance(operation, ast.Dashboard):
                 dashboard = True
         self.pipelines.append(PipelineSummary(node.dataset, node.location, dict(schema)))
 
-    def _group(self, node: ast.GroupBy, schema: dict[str, ColumnSymbol], dataset_name: str):
+    def _group(self, node: ast.GroupBy, schema: dict[str, ColumnSymbol],
+               dataset_name: str) -> dict[str, ColumnSymbol]:
         key = schema.get(node.column)
         if key is None:
             self.error("SEM003", node, f"La columna de agrupamiento '{node.column}' no existe.")
-            key = ColumnSymbol(node.column, ERROR)
+            key = ColumnSymbol(node.column, ERROR, scope=self.symbols.current_scope,
+                               line=node.location.line, initialized=False)
+        else:
+            key.used = True
         output = {node.column: key}
         for call in node.aggregates:
             info = self.infer(call, schema, aggregate_context="group")
@@ -129,11 +166,14 @@ class SemanticAnalyzer:
                 self.error("SEM012", call, f"GROUP_BY produciría dos columnas llamadas '{name}'. "
                            "La sintaxis actual no incluye alias; revisa los nombres de entrada.")
                 continue
-            output[name] = ColumnSymbol(name, info.datatype)
+            output[name] = ColumnSymbol(name, info.datatype,
+                                        scope=self.symbols.current_scope,
+                                        line=call.location.line,
+                                        initialized=info.datatype != ERROR)
         return output
 
-    def _plot(self, node: ast.Plot, schema):
-        axes = {}
+    def _plot(self, node: ast.Plot, schema: dict[str, ColumnSymbol]) -> None:
+        axes: dict[str, ast.Axis] = {}
         for axis in node.axes:
             if axis.name not in {"x", "y"}:
                 self.error("SEM009", axis, f"El eje '{axis.name}' no es válido; usa x o y.")
@@ -147,8 +187,7 @@ class SemanticAnalyzer:
             self.error("SEM009", node, "PLOT necesita los ejes: " + ", ".join(sorted(missing)) + ".")
         for name, axis in axes.items():
             value = axis.expression
-            valid_form = isinstance(value, ast.Column)
-            if not valid_form:
+            if not isinstance(value, ast.Column):
                 self.error("SEM009", value,
                            "PLOT necesita nombres de columnas en ambos ejes.")
                 continue
@@ -162,12 +201,13 @@ class SemanticAnalyzer:
                 self.error("SEM009", value, "LINE: x necesita NUMBER o STRING.")
 
     @staticmethod
-    def _typed(node: ast.Node, datatype: str, constant=None) -> ExpressionInfo:
+    def _typed(node: ast.Node, datatype: str,
+               constant: Decimal | str | bool | None = None) -> ExpressionInfo:
         node.inferred_type = datatype
         return ExpressionInfo(datatype, constant)
 
     def infer(self, node: ast.Node, schema: dict[str, ColumnSymbol],
-              aggregate_context: str | None = None, allow_unknown=False) -> ExpressionInfo:
+              aggregate_context: str | None = None, allow_unknown: bool = False) -> ExpressionInfo:
         """El esquema es contexto heredado; el tipo es un atributo sintetizado."""
         if isinstance(node, ast.Literal):
             return self._typed(node, node.datatype, node.value)
@@ -176,6 +216,11 @@ class SemanticAnalyzer:
             if symbol is None:
                 self.error("SEM003", node, f"La columna '{node.name}' no existe en este punto. "
                            "Disponibles: " + ", ".join(schema) + ".")
+                return self._typed(node, ERROR)
+            symbol.used = True
+            if not symbol.initialized:
+                self.error("SEM014", node,
+                           f"La columna '{node.name}' no tiene una inicialización válida.")
                 return self._typed(node, ERROR)
             if symbol.datatype == UNKNOWN and not allow_unknown:
                 self.error("SEM004", node, f"No se puede determinar el tipo de '{node.name}': "
@@ -194,8 +239,10 @@ class SemanticAnalyzer:
                 return self._typed(node, ERROR)
             constant = None
             if info.constant is not None:
-                constant = (not info.constant if node.operator == "NOT"
-                            else -info.constant if node.operator == "-" else info.constant)
+                if node.operator == "NOT":
+                    constant = not info.constant
+                elif isinstance(info.constant, Decimal):
+                    constant = -info.constant if node.operator == "-" else info.constant
             return self._typed(node, expected, constant)
         if isinstance(node, ast.Binary):
             op = node.operator
@@ -208,7 +255,8 @@ class SemanticAnalyzer:
             if ERROR in {left.datatype, right.datatype}:
                 return self._typed(node, ERROR)
             if op in {"+", "-", "*", "/"}:
-                if left.datatype != NUMBER or right.datatype != NUMBER:
+                result_type = ARITH_COMPAT.get((left.datatype, right.datatype))
+                if result_type is None:
                     self.error("SEM004", node, f"'{op}' necesita NUMBER y NUMBER; recibió "
                                f"{left.datatype} y {right.datatype}.")
                     return self._typed(node, ERROR)
@@ -217,7 +265,7 @@ class SemanticAnalyzer:
                                "durante el análisis semántico.")
                     return self._typed(node, ERROR)
                 constant = None
-                if left.constant is not None and right.constant is not None:
+                if isinstance(left.constant, Decimal) and isinstance(right.constant, Decimal):
                     try:
                         with localcontext() as context:
                             context.prec = max(context.prec, 64)
@@ -233,7 +281,7 @@ class SemanticAnalyzer:
                     except DecimalException:
                         # No convertir redondeos en falsos ceros del programa.
                         pass
-                return self._typed(node, NUMBER, constant)
+                return self._typed(node, result_type, constant)
             if op in {"AND", "OR"}:
                 if left.datatype != BOOLEAN or right.datatype != BOOLEAN:
                     self.error("SEM004", node, f"{op} necesita BOOLEAN y BOOLEAN.")
@@ -245,7 +293,7 @@ class SemanticAnalyzer:
                     return self._typed(node, BOOLEAN)
                 self.error("SEM004", node, "NULL solo puede compararse con == o !=.")
                 return self._typed(node, ERROR)
-            compatible = left.datatype == right.datatype and (
+            compatible = (left.datatype, right.datatype) in REL_COMPAT and (
                 equality or left.datatype in {NUMBER, STRING})
             if not compatible:
                 self.error("SEM004", node, f"No se puede comparar {left.datatype} con "
@@ -254,7 +302,8 @@ class SemanticAnalyzer:
             return self._typed(node, BOOLEAN)
         raise TypeError(f"Nodo de expresión desconocido: {type(node).__name__}")
 
-    def _aggregate(self, node: ast.Aggregate, schema, context):
+    def _aggregate(self, node: ast.Aggregate, schema: dict[str, ColumnSymbol],
+                   context: str | None) -> ExpressionInfo:
         if context != "group":
             self.error("SEM013", node, "Las agregaciones se usan en GROUP_BY.")
             return self._typed(node, ERROR)
@@ -264,16 +313,17 @@ class SemanticAnalyzer:
             expected = "cero argumentos" if node.function == "COUNT" else "un argumento"
             self.error("SEM006", node, f"{node.function} necesita {expected}; recibió {argc}.")
             return self._typed(node, ERROR)
-        if argc and not isinstance(node.arguments[0], ast.Column):
-            self.error("SEM006", node.arguments[0], "La agregación necesita el nombre de "
-                       "una columna como argumento.")
-            return self._typed(node, ERROR)
         if argc:
-            info = self.infer(node.arguments[0], schema)
+            argument = node.arguments[0]
+            if not isinstance(argument, ast.Column):
+                self.error("SEM006", argument, "La agregación necesita el nombre de "
+                           "una columna como argumento.")
+                return self._typed(node, ERROR)
+            info = self.infer(argument, schema)
             if info.datatype == ERROR:
                 return self._typed(node, ERROR)
             if node.function != "COUNT" and info.datatype != NUMBER:
                 self.error("SEM007", node, f"{node.function} necesita una columna NUMBER; "
-                           f"'{node.arguments[0].name}' es {info.datatype}.")
+                           f"'{argument.name}' es {info.datatype}.")
                 return self._typed(node, ERROR)
         return self._typed(node, NUMBER)
