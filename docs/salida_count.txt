@@ -1,0 +1,13 @@
+Análisis semántico correcto: 0 errores.
+
+TABLA GLOBAL DE DATASETS
+  clientes: DATASET (declarado en línea 1)
+    region: STRING
+    edad: NUMBER
+    activo: BOOLEAN
+    total_clientes: NUMBER
+
+ENTORNOS LOCALES AL FINAL DE CADA TUBERÍA
+  Tubería 1: clientes, línea 3
+    region: STRING
+    total_clientes: NUMBER

@@ -1,0 +1,2 @@
+examples/errores/sem003_columna_inexistente.vf:3:18: ERROR SEM003 (semántico): La columna 'descuento' no existe en este punto. Disponibles: categoria, monto, region, mes, precio, cantidad, activo, precio_venta, costo_base.
+Análisis rechazado: 1 error(es).

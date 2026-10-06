@@ -1,0 +1,2 @@
+examples/errores/sem008_division_cero.vf:3:40: ERROR SEM008 (semántico): División entre cero constante, conocida durante el análisis semántico.
+Análisis rechazado: 1 error(es).
