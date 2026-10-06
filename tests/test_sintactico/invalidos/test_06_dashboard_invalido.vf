@@ -1,0 +1,4 @@
+ventas
+    |> FILTER(monto > 500)
+    |> DASHBOARD
+    |> PLOT BAR(x=categoria, y=monto);

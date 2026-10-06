@@ -1,0 +1,5 @@
+ventas |> TRANSFORM(monto_igv = monto * 1.18);
+clientes |> TRANSFORM(edad_meses = edad * 12);
+notas |> TRANSFORM(promedio = (examen1 + examen2) / 2);
+inventario |> TRANSFORM(valor_total = precio * cantidad + envio);
+ventas |> TRANSFORM(ganancia_neta = (precio_venta - costo_base) * cantidad);

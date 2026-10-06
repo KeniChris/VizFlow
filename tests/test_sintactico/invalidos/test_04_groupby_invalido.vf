@@ -1,0 +1,1 @@
+ventas |> GROUP_BY(categoria, SUM());

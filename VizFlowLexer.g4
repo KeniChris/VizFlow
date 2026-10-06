@@ -35,6 +35,10 @@ BAR         : 'BAR' ;
 LINE        : 'LINE' ;
 SCATTER     : 'SCATTER' ;
 
+// Parámetros utilizados en PLOT
+X           : 'x' | 'X' ;
+Y           : 'y' | 'Y' ;
+
 // Valores booleanos y valor nulo
 TRUE        : 'true' | 'TRUE' ;
 FALSE       : 'false' | 'FALSE' ;
