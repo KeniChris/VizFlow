@@ -1,9 +1,0 @@
-// Caso de prueba integrado: Flujo completo con DASHBOARD (Sección 3 de VizFlow)
-DATASET ventas = LOAD "ventas_anuales.csv";
-
-ventas
-  |> FILTER(monto > 500)
-  |> TRANSFORM(monto_neto = monto * 0.82)
-  |> GROUP_BY(categoria, SUM(monto))
-  |> PLOT BAR(x=categoria, y=monto)
-  |> DASHBOARD;

@@ -1,6 +1,0 @@
-// Casos de prueba para sentencia FILTER (Sección 2.2 del Informe VizFlow)
-ventas |> FILTER(monto > 500);
-clientes |> FILTER(edad >= 18);
-notas |> FILTER(promedio < 11);
-inventario |> FILTER(stock == 0);
-llamadas |> FILTER(duracion > 120);

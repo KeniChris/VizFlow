@@ -1,0 +1,8 @@
+DATASET ventas = LOAD "ventas_anuales.csv";
+
+ventas
+    |> FILTER(monto > 500 AND activo == TRUE)
+    |> TRANSFORM(ganancia_neta = (precio_venta - costo_base) * cantidad)
+    |> GROUP_BY(categoria, SUM(ganancia_neta))
+    |> PLOT BAR(x=categoria, y=ganancia_neta)
+    |> DASHBOARD;

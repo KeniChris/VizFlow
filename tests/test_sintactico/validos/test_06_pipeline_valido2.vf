@@ -1,0 +1,6 @@
+DATASET clientes = LOAD "clientes.csv";
+
+clientes
+    |> FILTER(edad >= 18)
+    |> GROUP_BY(region, COUNT())
+    |> PLOT BAR(x=region, y=total_clientes);

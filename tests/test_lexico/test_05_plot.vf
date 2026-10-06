@@ -1,0 +1,6 @@
+// Casos de prueba para sentencia PLOT (Sección 2.5 de VizFlow)
+ventas |> PLOT BAR(x=categoria, y=monto);
+ventas |> PLOT LINE(x=mes, y=monto);
+clientes |> PLOT BAR(x=region, y=total_clientes);
+productos |> PLOT SCATTER(x=precio, y=ventas);
+alumnos |> PLOT BAR(x=curso, y=promedio);

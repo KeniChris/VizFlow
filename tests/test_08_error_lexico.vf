@@ -1,8 +1,0 @@
-// Archivo con caracteres no permitidos en el léxico de VizFlow
-DATASET ventas = LOAD "ventas.csv";
-
-// El símbolo arroba (@) y numeral (#) no están definidos
-ventas |> FILTER(monto @ 500 # error);
-
-// El carácter tilde (~) y dólar ($) tampoco son válidos
-ventas |> TRANSFORM(total = ~precio $ cantidad);

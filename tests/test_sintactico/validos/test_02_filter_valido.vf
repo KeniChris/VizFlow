@@ -1,0 +1,5 @@
+ventas |> FILTER(monto > 500);
+clientes |> FILTER(edad >= 18 AND activo == TRUE);
+notas |> FILTER(promedio < 11 OR asistencia < 70);
+inventario |> FILTER(NOT disponible == TRUE);
+productos |> FILTER((precio >= 100 AND stock > 0) OR destacado == TRUE);

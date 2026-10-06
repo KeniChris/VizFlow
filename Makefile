@@ -1,23 +1,32 @@
-FILENAME = VizFlowLexer.g4
-PREFIX = $(basename $(FILENAME))
+LEXER = VizFlowLexer.g4
+PARSER = VizFlowParser.g4
+OUTPUT_DIR = gen
 
-# Rutas estándar del jar de ANTLR4
 JAR_LOCAL  = $(HOME)/.local/lib/antlr-4.13.1-complete.jar
 JAR_SYSTEM = /usr/local/lib/antlr-4.13.1-complete.jar
 
 all:
+	@mkdir -p $(OUTPUT_DIR)
 	@if [ -f "$(JAR_LOCAL)" ]; then \
-		java -jar $(JAR_LOCAL) -Dlanguage=Python3 $(FILENAME); \
+		java -jar $(JAR_LOCAL) -Dlanguage=Python3 $(LEXER) -o $(OUTPUT_DIR); \
+		java -jar $(JAR_LOCAL) -Dlanguage=Python3 $(PARSER) -lib $(OUTPUT_DIR) -o $(OUTPUT_DIR); \
 	elif [ -f "$(JAR_SYSTEM)" ]; then \
-		java -jar $(JAR_SYSTEM) -Dlanguage=Python3 $(FILENAME); \
+		java -jar $(JAR_SYSTEM) -Dlanguage=Python3 $(LEXER) -o $(OUTPUT_DIR); \
+		java -jar $(JAR_SYSTEM) -Dlanguage=Python3 $(PARSER) -lib $(OUTPUT_DIR) -o $(OUTPUT_DIR); \
 	elif command -v antlr4 > /dev/null 2>&1; then \
-		antlr4 -Dlanguage=Python3 $(FILENAME); \
+		antlr4 -Dlanguage=Python3 $(LEXER) -o $(OUTPUT_DIR); \
+		antlr4 -Dlanguage=Python3 $(PARSER) -lib $(OUTPUT_DIR) -o $(OUTPUT_DIR); \
 	else \
 		echo "Error: No se encontró ANTLR4. Verifique la instalación del .jar o antlr4."; exit 1; \
 	fi
-	@echo "Generación léxica de $(PREFIX) completada exitosamente."
+	@echo "Generación léxica y sintáctica de VizFlow completada exitosamente en $(OUTPUT_DIR)/."
 
 clean:
-	rm -f $(PREFIX)*.py $(PREFIX)*.tokens $(PREFIX)*.interp
-	rm -rf __pycache__ tests/__pycache__
+	rm -f $(OUTPUT_DIR)/VizFlowLexer*.py
+	rm -f $(OUTPUT_DIR)/VizFlowLexer*.tokens
+	rm -f $(OUTPUT_DIR)/VizFlowLexer*.interp
+	rm -f $(OUTPUT_DIR)/VizFlowParser*.py
+	rm -f $(OUTPUT_DIR)/VizFlowParser*.tokens
+	rm -f $(OUTPUT_DIR)/VizFlowParser*.interp
+	rm -rf __pycache__ $(OUTPUT_DIR)/__pycache__ tests/__pycache__
 	@echo "Archivos generados eliminados."
