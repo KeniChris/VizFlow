@@ -1,0 +1,6 @@
+// Casos de prueba para sentencia LOAD (Sección 2.1 del Informe VizFlow)
+DATASET ventas = LOAD "ventas.csv";
+DATASET clientes = LOAD "clientes_2026.csv";
+DATASET notas = LOAD "evaluaciones.csv";
+DATASET inventario = LOAD "stock_almacen.csv";
+DATASET llamadas = LOAD "call_center_log.csv";
