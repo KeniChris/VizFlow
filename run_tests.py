@@ -2,7 +2,7 @@
 
 """
 Ejecutor de pruebas automatizadas para los analizadores
-léxico y sintáctico de VizFlow.
+léxico, sintáctico y semántico de VizFlow.
 
 Pruebas léxicas:
 - Los casos válidos deben ser reconocidos sin errores léxicos.
@@ -13,27 +13,41 @@ Pruebas sintácticas:
 - Los casos inválidos deben producir al menos un error sintáctico.
 """
 
+import argparse
+import json
 import os
 import glob
 import subprocess
 import sys
+import unittest
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 # ============================================================================
 # FUNCIÓN AUXILIAR
 # ============================================================================
 
-def ejecutar_archivo(ruta):
+def ejecutar_archivo(ruta, semantico=False):
     """
     Ejecuta main.py sobre un archivo .vf y devuelve
     el código de salida, stdout y stderr.
     """
 
+    comando = [sys.executable, str(PROJECT_ROOT / "main.py")]
+    if semantico:
+        comando += ["--semantico", "--json"]
+    comando.append(str(ruta))
+    entorno = dict(os.environ, PYTHONIOENCODING="utf-8")
     proceso = subprocess.run(
-        [sys.executable, "main.py", ruta],
+        comando,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
+        encoding="utf-8",
+        cwd=PROJECT_ROOT,
+        env=entorno
     )
 
     return proceso.returncode, proceso.stdout, proceso.stderr
@@ -46,7 +60,7 @@ def ejecutar_archivo(ruta):
 def ejecutar_pruebas_lexicas():
 
     archivos_prueba = sorted(
-        glob.glob("tests/test_lexico/*.vf")
+        glob.glob(str(PROJECT_ROOT / "tests/test_lexico/*.vf"))
     )
 
     print("\n" + "=" * 78)
@@ -136,7 +150,7 @@ def ejecutar_pruebas_lexicas():
 def ejecutar_pruebas_sintacticas_validas():
 
     archivos_prueba = sorted(
-        glob.glob("tests/test_sintactico/validos/*.vf")
+        glob.glob(str(PROJECT_ROOT / "tests/test_sintactico/validos/*.vf"))
     )
 
     print("\n" + "=" * 78)
@@ -199,7 +213,7 @@ def ejecutar_pruebas_sintacticas_validas():
 def ejecutar_pruebas_sintacticas_invalidas():
 
     archivos_prueba = sorted(
-        glob.glob("tests/test_sintactico/invalidos/*.vf")
+        glob.glob(str(PROJECT_ROOT / "tests/test_sintactico/invalidos/*.vf"))
     )
 
     print("\n" + "=" * 78)
@@ -262,10 +276,75 @@ def ejecutar_pruebas_sintacticas_invalidas():
 
 
 # ============================================================================
+# PRUEBAS SEMÁNTICAS DESDE PROGRAMAS FUENTE
+# ============================================================================
+
+def ejecutar_pruebas_semanticas():
+    print("\n" + "=" * 78)
+    print("PRUEBAS DEL ANALIZADOR SEMÁNTICO - ARCHIVOS .vf")
+    print("=" * 78)
+    pasadas = total = 0
+    for grupo in ("validos", "invalidos"):
+        carpeta = PROJECT_ROOT / "tests/test_semantico" / grupo
+        archivos = sorted(carpeta.glob("*.vf"))
+        if not archivos:
+            print(f"[✗ FAIL] No hay entradas semánticas en {carpeta}.")
+            total += 1
+        for ruta in archivos:
+            total += 1
+            codigo, salida, errores = ejecutar_archivo(ruta, semantico=True)
+            try:
+                resultado = json.loads(salida)
+                diagnosticos = resultado["diagnosticos"]
+                if grupo == "validos":
+                    correcta = codigo == 0 and resultado["ok"] and not diagnosticos
+                    esperado = "Aceptado"
+                else:
+                    # Los nombres sem003_... documentan el diagnóstico esperado.
+                    esperado = ruta.stem.split("_", 1)[0].upper()
+                    correcta = (
+                        codigo == 1 and not resultado["ok"]
+                        and all(d["phase"] == "semántico" for d in diagnosticos)
+                        and any(d["code"] == esperado for d in diagnosticos))
+            except (ValueError, KeyError, TypeError):
+                correcta = False
+                esperado = "Respuesta semántica en JSON"
+            etiqueta = "✓ PASS" if correcta else "✗ FAIL"
+            print(f"[{etiqueta}] {ruta.name:<42} -> {esperado}")
+            if correcta:
+                pasadas += 1
+            else:
+                print(f"Código de salida: {codigo}\n{salida}{errores}")
+    print(f"RESULTADO SEMÁNTICO: {pasadas}/{total} pruebas superadas.")
+    return pasadas, total
+
+
+def ejecutar_pruebas_unitarias():
+    print("\n" + "=" * 78)
+    print("PRUEBAS DE SEMÁNTICA, TABLA DE SÍMBOLOS E INTEGRACIÓN")
+    print("=" * 78)
+    suite = unittest.defaultTestLoader.discover(
+        str(PROJECT_ROOT / "tests/test_semantico"), pattern="test_*.py")
+    resultado = unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite)
+    # Los subcasos no incrementan testsRun: un método con algún fallo cuenta
+    # como una prueba fallida, aunque más de un subcaso haya fallado.
+    fallidas = {caso.id() for caso, _ in resultado.failures + resultado.errors}
+    for caso, _ in resultado.skipped + resultado.expectedFailures:
+        fallidas.add(caso.id())
+    fallidas.update(caso.id() for caso in resultado.unexpectedSuccesses)
+    metodos = {identificador.split(" (", 1)[0] for identificador in fallidas}
+    total = resultado.testsRun
+    if total == 0:
+        print("[✗ FAIL] No se encontraron pruebas unitarias.")
+        return 0, 1
+    return total - len(metodos), total
+
+
+# ============================================================================
 # EJECUCIÓN GENERAL
 # ============================================================================
 
-def ejecutar_pruebas():
+def ejecutar_pruebas(solo_originales=False):
 
     print("\n" + "=" * 78)
     print("SUITE DE PRUEBAS AUTOMATIZADAS - VIZFLOW")
@@ -294,19 +373,29 @@ def ejecutar_pruebas():
     )
 
     # ------------------------------------------------------------------------
-    # Resultado general
+    # 4. Pruebas semánticas y de integración
     # ------------------------------------------------------------------------
+
+    semantico_pasadas = semantico_total = 0
+    unitarias_pasadas = unitarias_total = 0
+    if not solo_originales:
+        semantico_pasadas, semantico_total = ejecutar_pruebas_semanticas()
+        unitarias_pasadas, unitarias_total = ejecutar_pruebas_unitarias()
 
     total_pasadas = (
         lexico_pasadas
         + sint_validas_pasadas
         + sint_invalidas_pasadas
+        + semantico_pasadas
+        + unitarias_pasadas
     )
 
     total_pruebas = (
         lexico_total
         + sint_validas_total
         + sint_invalidas_total
+        + semantico_total
+        + unitarias_total
     )
 
     print("\n" + "=" * 78)
@@ -330,6 +419,10 @@ def ejecutar_pruebas():
 
     print("-" * 78)
 
+    if not solo_originales:
+        print(f"Semántico - archivos .vf:       {semantico_pasadas}/{semantico_total}")
+        print(f"Semántica e integración:        {unitarias_pasadas}/{unitarias_total}")
+
     print(
         f"TOTAL: {total_pasadas}/{total_pruebas} "
         f"pruebas superadas."
@@ -337,9 +430,15 @@ def ejecutar_pruebas():
 
     print("=" * 78)
 
-    # Código 0 solamente si todas las pruebas fueron superadas.
+
     return 0 if total_pasadas == total_pruebas else 1
 
 
 if __name__ == '__main__':
-    sys.exit(ejecutar_pruebas())
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if callable(reconfigure):
+        reconfigure(encoding="utf-8")
+    argumentos = argparse.ArgumentParser(description="Pruebas de las tres fases de VizFlow")
+    argumentos.add_argument("--solo-originales", action="store_true",
+                            help="Ejecutar únicamente las 21 pruebas léxicas y sintácticas")
+    sys.exit(ejecutar_pruebas(argumentos.parse_args().solo_originales))

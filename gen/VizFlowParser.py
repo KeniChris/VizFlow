@@ -216,6 +216,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitPrograma" ):
                 listener.exitPrograma(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitPrograma" ):
+                return visitor.visitPrograma(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -274,6 +280,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitSentencia" ):
                 listener.exitSentencia(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitSentencia" ):
+                return visitor.visitSentencia(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -344,6 +356,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitDeclaracionDataset" ):
                 listener.exitDeclaracionDataset(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitDeclaracionDataset" ):
+                return visitor.visitDeclaracionDataset(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -413,6 +431,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitPipeline" ):
                 listener.exitPipeline(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitPipeline" ):
+                return visitor.visitPipeline(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -498,6 +522,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitOperacion" ):
                 listener.exitOperacion(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitOperacion" ):
+                return visitor.visitOperacion(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -572,6 +602,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitFilterOp" ):
                 listener.exitFilterOp(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFilterOp" ):
+                return visitor.visitFilterOp(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -628,6 +664,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitExpresionLogica" ):
                 listener.exitExpresionLogica(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitExpresionLogica" ):
+                return visitor.visitExpresionLogica(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -692,6 +734,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitExpresionAnd" ):
                 listener.exitExpresionAnd(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitExpresionAnd" ):
+                return visitor.visitExpresionAnd(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -764,6 +812,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitExpresionNot" ):
                 listener.exitExpresionNot(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitExpresionNot" ):
+                return visitor.visitExpresionNot(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -838,6 +892,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitComparacion" ):
                 listener.exitComparacion(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitComparacion" ):
+                return visitor.visitComparacion(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -897,6 +957,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitOperadorRelacional" ):
                 listener.exitOperadorRelacional(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitOperadorRelacional" ):
+                return visitor.visitOperadorRelacional(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -963,6 +1029,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitValor" ):
                 listener.exitValor(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitValor" ):
+                return visitor.visitValor(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -1025,6 +1097,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitTransformOp" ):
                 listener.exitTransformOp(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTransformOp" ):
+                return visitor.visitTransformOp(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -1092,6 +1170,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitExpresionAritmetica" ):
                 listener.exitExpresionAritmetica(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitExpresionAritmetica" ):
+                return visitor.visitExpresionAritmetica(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -1168,6 +1252,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitTermino" ):
                 listener.exitTermino(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTermino" ):
+                return visitor.visitTermino(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -1242,6 +1332,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitFactor" ):
                 listener.exitFactor(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFactor" ):
+                return visitor.visitFactor(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -1327,6 +1423,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitGroupByOp" ):
                 listener.exitGroupByOp(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitGroupByOp" ):
+                return visitor.visitGroupByOp(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -1390,6 +1492,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitAgregacion" ):
                 listener.exitAgregacion(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitAgregacion" ):
+                return visitor.visitAgregacion(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -1463,6 +1571,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitFuncionAgregacion" ):
                 listener.exitFuncionAgregacion(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFuncionAgregacion" ):
+                return visitor.visitFuncionAgregacion(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -1542,6 +1656,12 @@ class VizFlowParser ( Parser ):
             if hasattr( listener, "exitPlotOp" ):
                 listener.exitPlotOp(self)
 
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitPlotOp" ):
+                return visitor.visitPlotOp(self)
+            else:
+                return visitor.visitChildren(self)
+
 
 
 
@@ -1608,6 +1728,12 @@ class VizFlowParser ( Parser ):
         def exitRule(self, listener:ParseTreeListener):
             if hasattr( listener, "exitTipoGrafico" ):
                 listener.exitTipoGrafico(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitTipoGrafico" ):
+                return visitor.visitTipoGrafico(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 

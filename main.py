@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Driver principal para los analizadores léxico y sintáctico de VizFlow.
+Driver de VizFlow: léxico/sintáctico y modo --semantico.
 
 Basado en las directrices de la Unidad I del curso
 Teoría de Compiladores (UPC).
@@ -265,10 +265,18 @@ def analizar_cadena(codigo: str) -> bool:
 
 def main():
 
+    # Mantiene el modo original para las pruebas léxicas y sintácticas.
+    # Este modo añadido también comprueba el AST, símbolos y tipos del CSV.
+    if '--semantico' in sys.argv[1:]:
+        from vizflow.cli import main as main_semantico
+        argumentos = [arg for arg in sys.argv[1:] if arg != '--semantico']
+        sys.exit(main_semantico(argumentos))
+
     if len(sys.argv) < 2:
 
         print("Uso:")
         print("  python3 main.py <archivo.vf>")
+        print("  python3 main.py --semantico <archivo.vf> [--tabla] [--ast]")
         print("  python3 main.py --demo")
 
         sys.exit(1)

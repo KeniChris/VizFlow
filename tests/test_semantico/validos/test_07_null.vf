@@ -1,0 +1,4 @@
+DATASET ventas = LOAD "../../../data/ventas_nulos.csv";
+
+ventas |> FILTER(monto == NULL);
+ventas |> FILTER(monto != null);

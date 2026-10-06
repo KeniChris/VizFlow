@@ -1,0 +1,5 @@
+DATASET ventas = LOAD "../data/ventas.csv";
+
+ventas |> PLOT LINE(X=mes, Y=monto)
+       |> PLOT SCATTER(x=precio, y=cantidad)
+       |> DASHBOARD;
