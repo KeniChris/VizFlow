@@ -1,0 +1,4 @@
+categoria,monto,region,mes,precio,cantidad,activo,precio_venta,costo_base
+Snacks,600.50,Lima,enero,10,60,true,15,8
+Bebidas,200,Piura,febrero,20,10,false,30,18
+Snacks,750,Lima,marzo,25,30,true,32,20

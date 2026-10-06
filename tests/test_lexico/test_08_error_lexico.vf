@@ -1,0 +1,11 @@
+// Casos de prueba con operadores no permitidos en el léxico de VizFlow
+DATASET ventas = LOAD "ventas.csv";
+
+// VizFlow utiliza AND en lugar de &&
+ventas |> FILTER(monto > 500 && activo == TRUE);
+
+// VizFlow utiliza OR en lugar de ||
+ventas |> FILTER(monto > 500 || destacado == TRUE);
+
+// VizFlow utiliza NOT en lugar de !
+ventas |> FILTER(!disponible == TRUE);

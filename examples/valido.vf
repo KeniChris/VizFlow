@@ -1,0 +1,8 @@
+DATASET ventas = LOAD "../data/ventas.csv";
+
+ventas
+    |> FILTER(monto > 500 AND activo == TRUE)
+    |> TRANSFORM(monto_igv = monto * 1.18)
+    |> GROUP_BY(categoria, SUM(monto_igv))
+    |> PLOT BAR(x=categoria, y=monto_igv)
+    |> DASHBOARD;

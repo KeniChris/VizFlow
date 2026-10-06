@@ -1,0 +1,12 @@
+// =========================================================
+// Prueba de comentarios de una sola linea y multilínea
+// =========================================================
+
+/* Este es un comentario de bloque
+   que debe ser completamente ignorado
+   por el analizador léxico usando -> skip */
+
+DATASET metricas = LOAD "metricas.csv"; // Carga del archivo principal
+
+/* Filtro inicial de valores */
+metricas |> FILTER(valor >= 100);

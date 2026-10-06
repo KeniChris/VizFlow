@@ -1,0 +1,5 @@
+ventas |> PLOT BAR(x=categoria, y=monto);
+ventas |> PLOT LINE(x=mes, y=monto);
+clientes |> PLOT BAR(x=region, y=total_clientes);
+productos |> PLOT SCATTER(x=precio, y=ventas);
+alumnos |> PLOT BAR(x=curso, y=promedio);

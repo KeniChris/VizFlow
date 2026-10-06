@@ -1,0 +1,7 @@
+DATASET ventas = LOAD "../data/ventas.csv";
+
+ventas |> GROUP_BY(region, SUM(monto));
+ventas |> GROUP_BY(region, AVG(monto));
+ventas |> GROUP_BY(region, MIN(monto));
+ventas |> GROUP_BY(region, MAX(monto));
+ventas |> GROUP_BY(region, COUNT()) |> PLOT BAR(x=region, y=total_ventas);

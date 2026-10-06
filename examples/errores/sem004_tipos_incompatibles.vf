@@ -1,0 +1,3 @@
+DATASET ventas = LOAD "../../data/ventas.csv";
+
+ventas |> TRANSFORM(total = monto + categoria);
