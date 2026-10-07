@@ -143,3 +143,14 @@ python3 run_tests.py
 * `main`: Rama de producción y entregas del curso.
 * `develop`: Integración y desarrollo continuo.
 * `feature/analizador-lexico`: Desarrollo y validación del analizador léxico en ANTLR4.
+
+
+## 6. Declaración del uso de IA
+
+Durante el desarrollo de VizFlow se utilizaron herramientas de Inteligencia Artificial como apoyo en las siguientes actividades:
+
+- **Analizador sintáctico (Parser):** Se utilizó IA como apoyo para revisar la estructura de las gramáticas, evitar ambigüedades y validar el manejo de la precedencia de operadores lógicos y aritméticos.
+
+- **Analizador semántico:** Se utilizó IA como apoyo para plantear la estructura del analizador semántico, definir las principales validaciones semánticas y proponer casos de prueba para verificar su funcionamiento.
+
+Las propuestas generadas con IA fueron revisadas, adaptadas y validadas por los integrantes del equipo antes de incorporarlas al proyecto.
