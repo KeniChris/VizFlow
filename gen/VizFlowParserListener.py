@@ -17,6 +17,15 @@ class VizFlowParserListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by VizFlowParser#listaSentencias.
+    def enterListaSentencias(self, ctx:VizFlowParser.ListaSentenciasContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#listaSentencias.
+    def exitListaSentencias(self, ctx:VizFlowParser.ListaSentenciasContext):
+        pass
+
+
     # Enter a parse tree produced by VizFlowParser#sentencia.
     def enterSentencia(self, ctx:VizFlowParser.SentenciaContext):
         pass
@@ -41,6 +50,24 @@ class VizFlowParserListener(ParseTreeListener):
 
     # Exit a parse tree produced by VizFlowParser#pipeline.
     def exitPipeline(self, ctx:VizFlowParser.PipelineContext):
+        pass
+
+
+    # Enter a parse tree produced by VizFlowParser#operacionesAdicionales.
+    def enterOperacionesAdicionales(self, ctx:VizFlowParser.OperacionesAdicionalesContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#operacionesAdicionales.
+    def exitOperacionesAdicionales(self, ctx:VizFlowParser.OperacionesAdicionalesContext):
+        pass
+
+
+    # Enter a parse tree produced by VizFlowParser#dashboardOpcional.
+    def enterDashboardOpcional(self, ctx:VizFlowParser.DashboardOpcionalContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#dashboardOpcional.
+    def exitDashboardOpcional(self, ctx:VizFlowParser.DashboardOpcionalContext):
         pass
 
 
@@ -71,12 +98,30 @@ class VizFlowParserListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by VizFlowParser#continuacionOr.
+    def enterContinuacionOr(self, ctx:VizFlowParser.ContinuacionOrContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#continuacionOr.
+    def exitContinuacionOr(self, ctx:VizFlowParser.ContinuacionOrContext):
+        pass
+
+
     # Enter a parse tree produced by VizFlowParser#expresionAnd.
     def enterExpresionAnd(self, ctx:VizFlowParser.ExpresionAndContext):
         pass
 
     # Exit a parse tree produced by VizFlowParser#expresionAnd.
     def exitExpresionAnd(self, ctx:VizFlowParser.ExpresionAndContext):
+        pass
+
+
+    # Enter a parse tree produced by VizFlowParser#continuacionAnd.
+    def enterContinuacionAnd(self, ctx:VizFlowParser.ContinuacionAndContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#continuacionAnd.
+    def exitContinuacionAnd(self, ctx:VizFlowParser.ContinuacionAndContext):
         pass
 
 
@@ -134,12 +179,30 @@ class VizFlowParserListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by VizFlowParser#continuacionSuma.
+    def enterContinuacionSuma(self, ctx:VizFlowParser.ContinuacionSumaContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#continuacionSuma.
+    def exitContinuacionSuma(self, ctx:VizFlowParser.ContinuacionSumaContext):
+        pass
+
+
     # Enter a parse tree produced by VizFlowParser#termino.
     def enterTermino(self, ctx:VizFlowParser.TerminoContext):
         pass
 
     # Exit a parse tree produced by VizFlowParser#termino.
     def exitTermino(self, ctx:VizFlowParser.TerminoContext):
+        pass
+
+
+    # Enter a parse tree produced by VizFlowParser#continuacionProducto.
+    def enterContinuacionProducto(self, ctx:VizFlowParser.ContinuacionProductoContext):
+        pass
+
+    # Exit a parse tree produced by VizFlowParser#continuacionProducto.
+    def exitContinuacionProducto(self, ctx:VizFlowParser.ContinuacionProductoContext):
         pass
 
 

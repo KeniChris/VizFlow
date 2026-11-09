@@ -1,3 +1,4 @@
+
 parser grammar VizFlowParser;
 
 /*
@@ -13,11 +14,16 @@ options {
 
 // ----------------------------------------------------------------------------
 // 1. REGLA INICIAL DEL PROGRAMA
-// Un programa VizFlow puede contener declaraciones de datasets y pipelines.
+// Un programa VizFlow contiene una o más sentencias.
 // EOF asegura que todo el archivo sea procesado.
 // ----------------------------------------------------------------------------
 programa
-    : sentencia+ EOF
+    : sentencia listaSentencias EOF
+    ;
+
+listaSentencias
+    : sentencia listaSentencias
+    |
     ;
 
 sentencia
@@ -37,10 +43,21 @@ declaracionDataset
 // ----------------------------------------------------------------------------
 // 3. PIPELINE GENERAL DE VIZFLOW
 // Permite aplicar una o más operaciones sobre un dataset mediante |>.
+// Las operaciones adicionales se definen mediante recursión.
 // El pipeline puede finalizar opcionalmente con DASHBOARD.
 // ----------------------------------------------------------------------------
 pipeline
-    : ID PIPE operacion (PIPE operacion)* (PIPE DASHBOARD)? SEMI
+    : ID PIPE operacion operacionesAdicionales dashboardOpcional SEMI
+    ;
+
+operacionesAdicionales
+    : PIPE operacion operacionesAdicionales
+    |
+    ;
+
+dashboardOpcional
+    : PIPE DASHBOARD
+    |
     ;
 
 operacion
@@ -61,12 +78,22 @@ filterOp
 
 // Nivel de menor precedencia: OR
 expresionLogica
-    : expresionAnd (OR expresionAnd)*
+    : expresionAnd continuacionOr
+    ;
+
+continuacionOr
+    : OR expresionAnd continuacionOr
+    |
     ;
 
 // Nivel intermedio: AND
 expresionAnd
-    : expresionNot (AND expresionNot)*
+    : expresionNot continuacionAnd
+    ;
+
+continuacionAnd
+    : AND expresionNot continuacionAnd
+    |
     ;
 
 // Nivel de mayor precedencia lógica: NOT
@@ -108,14 +135,29 @@ transformOp
     : TRANSFORM LPAREN ID ASSIGN expresionAritmetica RPAREN
     ;
 
+// Nivel de menor precedencia: suma y resta
 expresionAritmetica
-    : termino ((PLUS | MINUS) termino)*
+    : termino continuacionSuma
     ;
 
+continuacionSuma
+    : PLUS termino continuacionSuma
+    | MINUS termino continuacionSuma
+    |
+    ;
+
+// Nivel de mayor precedencia aritmética: multiplicación y división
 termino
-    : factor ((STAR | SLASH) factor)*
+    : factor continuacionProducto
     ;
 
+continuacionProducto
+    : STAR factor continuacionProducto
+    | SLASH factor continuacionProducto
+    |
+    ;
+
+// Elementos básicos y expresiones agrupadas
 factor
     : LPAREN expresionAritmetica RPAREN
     | ID
@@ -158,3 +200,4 @@ tipoGrafico
     | LINE
     | SCATTER
     ;
+
