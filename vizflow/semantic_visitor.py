@@ -1,8 +1,11 @@
+
 """Visitor semántico de ANTLR adaptado del enfoque de MiniLang a VizFlow."""
 
 from pathlib import Path
 from typing import Any
+
 from gen.VizFlowParserVisitor import VizFlowParserVisitor
+
 from .ast_builder import ASTBuilder, location
 from .ast_nodes import LoadDataset, Node, Pipeline, Program
 from .errors import SemanticError
@@ -11,6 +14,7 @@ from .symbols import SymbolTable
 
 
 class SemanticVisitor(VizFlowParserVisitor):
+
     def __init__(self, base_dir: Path):
         self.base_dir = Path(base_dir)
         self.builder = ASTBuilder()
@@ -29,10 +33,27 @@ class SemanticVisitor(VizFlowParserVisitor):
         # Reiniciar permite reutilizar el visitor sin arrastrar símbolos o errores.
         self.analyzer = SemanticAnalyzer(self.base_dir)
         self.program = Program(location(ctx.start), [])
-        for statement in ctx.sentencia():
-            self.program.statements.append(self.visit(statement))
-        return AnalysisResult(self.program, self.symtab, self.analyzer.diagnostics,
-                              self.analyzer.pipelines)
+
+        # Procesar la primera sentencia obligatoria.
+        self.program.statements.append(self.visit(ctx.sentencia()))
+
+        # Procesar las sentencias adicionales mediante recursión.
+        self.visit(ctx.listaSentencias())
+
+        return AnalysisResult(
+            self.program,
+            self.symtab,
+            self.analyzer.diagnostics,
+            self.analyzer.pipelines
+        )
+
+    def visitListaSentencias(self, ctx: Any) -> None:
+        # La producción vacía indica que no hay más sentencias.
+        if ctx.sentencia() is None:
+            return
+
+        self.program.statements.append(self.visit(ctx.sentencia()))
+        self.visit(ctx.listaSentencias())
 
     def visitSentencia(self, ctx: Any) -> Node:
         return self.visit(ctx.getChild(0))
@@ -46,3 +67,4 @@ class SemanticVisitor(VizFlowParserVisitor):
         node = self.builder.visitPipeline(ctx)
         self.analyzer._pipeline(node)
         return node
+
