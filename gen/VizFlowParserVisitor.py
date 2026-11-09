@@ -14,6 +14,11 @@ class VizFlowParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by VizFlowParser#listaSentencias.
+    def visitListaSentencias(self, ctx:VizFlowParser.ListaSentenciasContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by VizFlowParser#sentencia.
     def visitSentencia(self, ctx:VizFlowParser.SentenciaContext):
         return self.visitChildren(ctx)
@@ -26,6 +31,16 @@ class VizFlowParserVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by VizFlowParser#pipeline.
     def visitPipeline(self, ctx:VizFlowParser.PipelineContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by VizFlowParser#operacionesAdicionales.
+    def visitOperacionesAdicionales(self, ctx:VizFlowParser.OperacionesAdicionalesContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by VizFlowParser#dashboardOpcional.
+    def visitDashboardOpcional(self, ctx:VizFlowParser.DashboardOpcionalContext):
         return self.visitChildren(ctx)
 
 
@@ -44,8 +59,18 @@ class VizFlowParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by VizFlowParser#continuacionOr.
+    def visitContinuacionOr(self, ctx:VizFlowParser.ContinuacionOrContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by VizFlowParser#expresionAnd.
     def visitExpresionAnd(self, ctx:VizFlowParser.ExpresionAndContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by VizFlowParser#continuacionAnd.
+    def visitContinuacionAnd(self, ctx:VizFlowParser.ContinuacionAndContext):
         return self.visitChildren(ctx)
 
 
@@ -79,8 +104,18 @@ class VizFlowParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by VizFlowParser#continuacionSuma.
+    def visitContinuacionSuma(self, ctx:VizFlowParser.ContinuacionSumaContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by VizFlowParser#termino.
     def visitTermino(self, ctx:VizFlowParser.TerminoContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by VizFlowParser#continuacionProducto.
+    def visitContinuacionProducto(self, ctx:VizFlowParser.ContinuacionProductoContext):
         return self.visitChildren(ctx)
 
 
