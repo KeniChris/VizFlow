@@ -1,0 +1,2 @@
+DATASET ventas = LOAD "ventas.xlsx";
+ventas |> FILTER(monto > 10);

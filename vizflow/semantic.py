@@ -4,6 +4,7 @@ import csv
 from dataclasses import dataclass, field, replace
 from decimal import Decimal, DecimalException, Inexact, localcontext
 from pathlib import Path
+from typing import cast
 from . import ast_nodes as ast
 from .csv_schema import read_schema
 from .diagnostics import Diagnostic
@@ -81,12 +82,17 @@ class SemanticAnalyzer:
         path = Path(node.path)
         if not path.is_absolute():
             path = self.base_dir / path
-        try:
-            path = path.resolve()
-            columns = read_schema(path)
-        except (OSError, UnicodeError, csv.Error, ValueError) as exc:
-            self.error("SEM011", node, f"No se pudo obtener el esquema de '{node.path}': {exc}")
+        if path.suffix.lower() != ".csv":
+            self.error("SEM015", node, "LOAD solo admite archivos CSV (.csv); "
+                       f"se recibió '{path.suffix or 'sin extensión'}' en '{node.path}'.")
             columns = None
+        else:
+            try:
+                path = path.resolve()
+                columns = read_schema(path)
+            except (OSError, UnicodeError, csv.Error, ValueError) as exc:
+                self.error("SEM011", node, f"No se pudo obtener el esquema de '{node.path}': {exc}")
+                columns = None
         # Evita falsos "no declarado" si ya se notificó un fallo del LOAD.
         symbol = DatasetSymbol(node.name, path, node.location, columns,
                                initialized=columns is not None)
@@ -112,16 +118,10 @@ class SemanticAnalyzer:
             self.symbols.exit_scope()
 
     def _operations(self, node: ast.Pipeline, schema: dict[str, ColumnSymbol]) -> None:
-        dashboard = False
         for operation in node.operations:
-            if dashboard:
-                self.error("SEM010", operation, "DASHBOARD debe ser la última operación.")
-                continue
             if isinstance(operation, ast.Filter):
-                info = self.infer(operation.condition, schema)
-                if info.datatype not in {BOOLEAN, ERROR}:
-                    self.error("SEM005", operation.condition,
-                               f"FILTER necesita BOOLEAN; recibió {info.datatype}.")
+                # La gramática exige una condición lógica; aquí se verifican sus tipos.
+                self.infer(operation.condition, schema)
             elif isinstance(operation, ast.Transform):
                 info = self.infer(operation.expression, schema)
                 if info.datatype not in {NUMBER, ERROR}:
@@ -141,8 +141,6 @@ class SemanticAnalyzer:
                 self.symbols.replace_columns(schema)
             elif isinstance(operation, ast.Plot):
                 self._plot(operation, schema)
-            elif isinstance(operation, ast.Dashboard):
-                dashboard = True
         self.pipelines.append(PipelineSummary(node.dataset, node.location, dict(schema)))
 
     def _group(self, node: ast.GroupBy, schema: dict[str, ColumnSymbol],
@@ -156,7 +154,7 @@ class SemanticAnalyzer:
             key.used = True
         output = {node.column: key}
         for call in node.aggregates:
-            info = self.infer(call, schema, aggregate_context="group")
+            info = self._aggregate(call, schema)
             argument = call.arguments[0] if len(call.arguments) == 1 else None
             # El DOCX usa SUM(monto) y después y=monto: se conserva ese nombre.
             # El avance del equipo usa COUNT() y luego y=total_clientes.
@@ -207,7 +205,7 @@ class SemanticAnalyzer:
         return ExpressionInfo(datatype, constant)
 
     def infer(self, node: ast.Node, schema: dict[str, ColumnSymbol],
-              aggregate_context: str | None = None, allow_unknown: bool = False) -> ExpressionInfo:
+              allow_unknown: bool = False) -> ExpressionInfo:
         """El esquema es contexto heredado; el tipo es un atributo sintetizado."""
         if isinstance(node, ast.Literal):
             return self._typed(node, node.datatype, node.value)
@@ -227,10 +225,8 @@ class SemanticAnalyzer:
                            "su CSV no contiene valores no vacíos para esa columna.")
                 return self._typed(node, ERROR)
             return self._typed(node, symbol.datatype)
-        if isinstance(node, ast.Aggregate):
-            return self._aggregate(node, schema, aggregate_context)
         if isinstance(node, ast.Unary):
-            info = self.infer(node.operand, schema, aggregate_context)
+            info = self.infer(node.operand, schema)
             expected = BOOLEAN if node.operator == "NOT" else NUMBER
             if info.datatype == ERROR:
                 return self._typed(node, ERROR)
@@ -250,8 +246,8 @@ class SemanticAnalyzer:
             null_check = op in {"==", "!="} and any(
                 isinstance(child, ast.Literal) and child.datatype == NULL
                 for child in (node.left, node.right))
-            left = self.infer(node.left, schema, aggregate_context, allow_unknown=null_check)
-            right = self.infer(node.right, schema, aggregate_context, allow_unknown=null_check)
+            left = self.infer(node.left, schema, allow_unknown=null_check)
+            right = self.infer(node.right, schema, allow_unknown=null_check)
             if ERROR in {left.datatype, right.datatype}:
                 return self._typed(node, ERROR)
             if op in {"+", "-", "*", "/"}:
@@ -302,28 +298,17 @@ class SemanticAnalyzer:
             return self._typed(node, BOOLEAN)
         raise TypeError(f"Nodo de expresión desconocido: {type(node).__name__}")
 
-    def _aggregate(self, node: ast.Aggregate, schema: dict[str, ColumnSymbol],
-                   context: str | None) -> ExpressionInfo:
-        if context != "group":
-            self.error("SEM013", node, "Las agregaciones se usan en GROUP_BY.")
+    def _aggregate(self, node: ast.Aggregate, schema: dict[str, ColumnSymbol]) -> ExpressionInfo:
+        # El parser solo admite COUNT() o una función numérica con una columna,
+        # y solo permite estas llamadas dentro de GROUP_BY.
+        if node.function == "COUNT":
+            return self._typed(node, NUMBER)
+        argument = cast(ast.Column, node.arguments[0])
+        info = self.infer(argument, schema)
+        if info.datatype == ERROR:
             return self._typed(node, ERROR)
-        argc = len(node.arguments)
-        valid_arity = argc == 0 if node.function == "COUNT" else argc == 1
-        if not valid_arity:
-            expected = "cero argumentos" if node.function == "COUNT" else "un argumento"
-            self.error("SEM006", node, f"{node.function} necesita {expected}; recibió {argc}.")
+        if info.datatype != NUMBER:
+            self.error("SEM007", node, f"{node.function} necesita una columna NUMBER; "
+                       f"'{argument.name}' es {info.datatype}.")
             return self._typed(node, ERROR)
-        if argc:
-            argument = node.arguments[0]
-            if not isinstance(argument, ast.Column):
-                self.error("SEM006", argument, "La agregación necesita el nombre de "
-                           "una columna como argumento.")
-                return self._typed(node, ERROR)
-            info = self.infer(argument, schema)
-            if info.datatype == ERROR:
-                return self._typed(node, ERROR)
-            if node.function != "COUNT" and info.datatype != NUMBER:
-                self.error("SEM007", node, f"{node.function} necesita una columna NUMBER; "
-                           f"'{argument.name}' es {info.datatype}.")
-                return self._typed(node, ERROR)
         return self._typed(node, NUMBER)
