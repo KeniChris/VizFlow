@@ -153,7 +153,7 @@ ERROR SEM015 (semántico): LOAD solo admite archivos CSV (.csv); se recibió '.x
 ```
 
 Consulta la [matriz de validaciones semánticas y su relación con la gramática](docs/validaciones_semanticas.md)
-para distinguir los diagnósticos observables desde un `.vf` de las guardas del AST.
+para consultar los 11 códigos demostrables desde archivos `.vf` y las restricciones que resuelve el parser.
 
 ---
 
