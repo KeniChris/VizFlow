@@ -276,6 +276,47 @@ class SemanticTests(unittest.TestCase):
     def test_sem012_colision_de_clave_y_resultado_agregado(self):
         self.semantic_error("ventas |> GROUP_BY(monto, SUM(monto));", "SEM012")
 
+    def test_sem015_formato_no_csv_y_ubicacion_sin_cascada(self):
+        for name in ("ventas.txt", "ventas.xlsx", "ventas.json", "ventas.csv.json", "ventas"):
+            with self.subTest(name=name):
+                # Incluso con contenido CSV válido se rechaza otra extensión.
+                shutil.copy2(self.root / "ventas.csv", self.root / name)
+                result = self.semantic_error(
+                    f'\n  DATASET ventas = LOAD "{name}";\n'
+                    'ventas |> FILTER(monto > 10);', "SEM015", prefix=False)
+                self.assertEqual([d.code for d in result.diagnostics], ["SEM015"])
+                error = result.diagnostics[0]
+                self.assertEqual((error.location.line, error.location.column), (2, 11))
+                self.assertIn(name, error.message)
+                self.assertIn(Path(name).suffix or "sin extensión", error.message)
+                self.assertIn(".csv", error.message)
+                dataset = result.symbols.datasets["ventas"]
+                self.assertFalse(dataset.initialized)
+                self.assertIsNone(dataset.columns)
+
+    def test_sem015_formato_invalido_antes_de_buscar_archivo(self):
+        result = self.semantic_error('DATASET ventas = LOAD "no_existe.xlsx";',
+                                     "SEM015", prefix=False)
+        self.assertEqual([d.code for d in result.diagnostics], ["SEM015"])
+        self.assertIn(".xlsx", result.diagnostics[0].message)
+
+    def test_sem015_ruta_absoluta(self):
+        path = self.root / "ventas.xlsx"
+        shutil.copy2(self.root / "ventas.csv", path)
+        result = self.semantic_error(f'DATASET ventas = LOAD {json.dumps(str(path))};',
+                                     "SEM015", prefix=False)
+        self.assertEqual([d.code for d in result.diagnostics], ["SEM015"])
+        self.assertIn(str(path), result.diagnostics[0].message)
+
+    def test_load_acepta_extension_csv_sin_distinguir_mayusculas(self):
+        for extension in (".csv", ".CSV", ".CsV"):
+            with self.subTest(extension=extension):
+                name = "ventas_copia" + extension
+                shutil.copy2(self.root / "ventas.csv", self.root / name)
+                result = self.valid(f'DATASET ventas = LOAD "{name}";\n'
+                                    'ventas |> FILTER(monto > 10);', prefix=False)
+                self.assertTrue(result.symbols.datasets["ventas"].initialized)
+
     def test_null_igualdad_y_desigualdad(self):
         self.valid("ventas |> FILTER(monto == NULL);\nventas |> FILTER(categoria != null);")
 
@@ -385,6 +426,14 @@ class DriverTests(unittest.TestCase):
         result = self.execute("examples/errores/sem007_sum_texto.vf", "--semantico")
         self.assertEqual(result.returncode, 1)
         self.assertIn("SEM007", result.stderr)
+
+    def test_driver_sem015_muestra_formato_recibido(self):
+        result = self.execute("examples/errores/sem015_formato_no_csv.vf", "--semantico")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("SEM015", result.stderr)
+        self.assertIn(".xlsx", result.stderr)
+        self.assertIn(".csv", result.stderr)
+        self.assertIn("1 error(es)", result.stderr)
 
     def test_driver_exit_dos_sintactico(self):
         result = self.execute("--semantico", "examples/errores/sintactico.vf")

@@ -1,0 +1,4 @@
+DATASET ventas = LOAD "../../data/ventas.csv";
+
+// SUM sobre texto produce SEM007; usar su resultado sin inicializar produce SEM014.
+ventas |> GROUP_BY(region, SUM(categoria)) |> FILTER(categoria == "A");
