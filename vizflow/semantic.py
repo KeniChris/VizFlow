@@ -81,12 +81,17 @@ class SemanticAnalyzer:
         path = Path(node.path)
         if not path.is_absolute():
             path = self.base_dir / path
-        try:
-            path = path.resolve()
-            columns = read_schema(path)
-        except (OSError, UnicodeError, csv.Error, ValueError) as exc:
-            self.error("SEM011", node, f"No se pudo obtener el esquema de '{node.path}': {exc}")
+        if path.suffix.lower() != ".csv":
+            self.error("SEM015", node, "LOAD solo admite archivos CSV (.csv); "
+                       f"se recibió '{path.suffix or 'sin extensión'}' en '{node.path}'.")
             columns = None
+        else:
+            try:
+                path = path.resolve()
+                columns = read_schema(path)
+            except (OSError, UnicodeError, csv.Error, ValueError) as exc:
+                self.error("SEM011", node, f"No se pudo obtener el esquema de '{node.path}': {exc}")
+                columns = None
         # Evita falsos "no declarado" si ya se notificó un fallo del LOAD.
         symbol = DatasetSymbol(node.name, path, node.location, columns,
                                initialized=columns is not None)

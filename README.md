@@ -137,6 +137,21 @@ python3 main.py --demo
 python3 run_tests.py
 ```
 
+### Comprobar un formato de entrada no admitido
+`LOAD` requiere la extensión `.csv` (también acepta `.CSV` o mayúsculas mixtas).
+Una extensión diferente o ausente produce `SEM015` e informa la extensión recibida,
+la ruta y la ubicación en el programa. Los fallos de lectura o estructura de un
+archivo `.csv` conservan el diagnóstico `SEM011`.
+
+```bash
+python3 main.py --semantico examples/errores/sem015_formato_no_csv.vf
+```
+
+El ejemplo `DATASET ventas = LOAD "ventas.xlsx";` produce:
+```text
+ERROR SEM015 (semántico): LOAD solo admite archivos CSV (.csv); se recibió '.xlsx' en 'ventas.xlsx'.
+```
+
 ---
 
 ## 5. Estrategia de Ramas Git
