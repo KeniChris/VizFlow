@@ -152,6 +152,9 @@ El ejemplo `DATASET ventas = LOAD "ventas.xlsx";` produce:
 ERROR SEM015 (semántico): LOAD solo admite archivos CSV (.csv); se recibió '.xlsx' en 'ventas.xlsx'.
 ```
 
+Consulta la [matriz de validaciones semánticas y su relación con la gramática](docs/validaciones_semanticas.md)
+para distinguir los diagnósticos observables desde un `.vf` de las guardas del AST.
+
 ---
 
 ## 5. Estrategia de Ramas Git
