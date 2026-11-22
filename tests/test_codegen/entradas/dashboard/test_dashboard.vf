@@ -1,0 +1,7 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
+
+ventas
+    |> FILTER(monto > 100)
+    |> GROUP_BY(region, SUM(monto))
+    |> PLOT BAR(X = region, Y = monto)
+    |> DASHBOARD;

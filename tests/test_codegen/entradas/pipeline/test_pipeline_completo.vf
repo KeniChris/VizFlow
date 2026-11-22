@@ -1,0 +1,6 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
+
+ventas
+    |> FILTER(monto > 100)
+    |> TRANSFORM(monto_doble = monto * 2)
+    |> GROUP_BY(region, SUM(monto_doble));

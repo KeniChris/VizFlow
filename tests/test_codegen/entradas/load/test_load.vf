@@ -1,0 +1,1 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
