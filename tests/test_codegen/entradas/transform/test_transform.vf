@@ -1,0 +1,4 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
+
+ventas
+    |> TRANSFORM(monto_doble = monto * 2);

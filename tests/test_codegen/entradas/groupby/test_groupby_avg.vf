@@ -1,0 +1,4 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
+
+ventas
+    |> GROUP_BY(region, AVG(monto));

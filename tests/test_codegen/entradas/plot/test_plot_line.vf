@@ -1,0 +1,4 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
+
+ventas
+    |> PLOT LINE(X = region, Y = monto);

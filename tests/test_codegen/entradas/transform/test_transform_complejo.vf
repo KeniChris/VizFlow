@@ -1,0 +1,4 @@
+DATASET ventas = LOAD "../../datos/ventas.csv";
+
+ventas
+    |> TRANSFORM(promedio = (monto + cantidad) / 2);

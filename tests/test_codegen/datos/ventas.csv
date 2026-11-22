@@ -1,0 +1,6 @@
+region,monto,cantidad,destacado
+Lima,150,10,False
+Lima,200,20,False
+Cusco,80,5,True
+Cusco,120,15,False
+Arequipa,300,30,False
