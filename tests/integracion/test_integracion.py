@@ -1,6 +1,5 @@
 """Ejecutar desde la raíz: python3 -m unittest discover -s tests/integracion -v."""
 
-import json
 import os
 import shutil
 import subprocess
@@ -9,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from xml.etree import ElementTree
 
 from antlr4 import CommonTokenStream, FileStream
 
@@ -94,16 +94,6 @@ class TestIntegracionVizFlow(unittest.TestCase):
                 print(f"\nCódigo Python generado:\n{codigo}", flush=True)
 
             with etapa("5/6 Ejecución del código Python"):
-                # run_path ejecuta el archivo generado y permite leer su tabla
-                # de ventas para contrastarla con los totales esperados.
-                resultado_json = carpeta / "resultado.json"
-                inspeccionar_resultado = (
-                    "import runpy, sys\n"
-                    "from pathlib import Path\n"
-                    "variables = runpy.run_path(sys.argv[1], run_name='__main__')\n"
-                    "ventas = variables['ventas'].to_json(orient='records')\n"
-                    "Path(sys.argv[2]).write_text(ventas, encoding='utf-8')\n"
-                )
                 entorno = os.environ.copy()
                 rutas_python = [str(RAIZ)]
                 if entorno.get("PYTHONPATH"):
@@ -113,7 +103,7 @@ class TestIntegracionVizFlow(unittest.TestCase):
                 entorno["MPLCONFIGDIR"] = str(carpeta / "matplotlib")
 
                 resultado = subprocess.run(
-                    [sys.executable, "-c", inspeccionar_resultado, str(programa_python), str(resultado_json)],
+                    [sys.executable, str(programa_python)],
                     cwd=carpeta,
                     env=entorno,
                     capture_output=True,
@@ -127,16 +117,6 @@ class TestIntegracionVizFlow(unittest.TestCase):
                     f"Python terminó con código {resultado.returncode}.\n"
                     f"Salida: {resultado.stdout}\nErrores: {resultado.stderr}",
                 )
-                filas = json.loads(resultado_json.read_text(encoding="utf-8"))
-                self.assertCountEqual(
-                    filas,
-                    [
-                        {"region": "Arequipa", "monto_doble": 600},
-                        {"region": "Cusco", "monto_doble": 240},
-                        {"region": "Lima", "monto_doble": 700},
-                    ],
-                )
-                print(f"Totales verificados por región: {filas}", flush=True)
 
             with etapa("6/6 Verificación del dashboard HTML"):
                 salida = carpeta / "vizflow_output"
@@ -144,7 +124,21 @@ class TestIntegracionVizFlow(unittest.TestCase):
                 self.assertTrue(dashboard.is_file(), "No se generó vizflow_output/dashboard.html.")
                 html = dashboard.read_text(encoding="utf-8")
                 self.assertIn("VizFlow Dashboard", html)
-                self.assertIn("<table", html)
+                self.assertIn("<table", html, "El dashboard no incluye la tabla de resultados.")
+
+                # La tabla de pandas permite comprobar la salida del programa
+                # que se acaba de ejecutar, usando los datos publicados en el HTML.
+                inicio_tabla = html.index("<table")
+                fin_tabla = html.index("</table>", inicio_tabla) + len("</table>")
+                tabla = ElementTree.fromstring(html[inicio_tabla:fin_tabla])
+                columnas = [columna.text for columna in tabla.findall("./thead/tr/th")]
+                self.assertEqual(columnas, ["region", "monto_doble"])
+                filas = [
+                    tuple(celda.text for celda in fila.findall("td"))
+                    for fila in tabla.findall("./tbody/tr")
+                ]
+                self.assertCountEqual(filas, [("Arequipa", "600"), ("Cusco", "240"), ("Lima", "700")])
+                print(f"Totales verificados por región: {dict(filas)}", flush=True)
 
                 grafico = Path("plots/grafico_bar_1.png")
                 self.assertIn(grafico.as_posix(), html)
